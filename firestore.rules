@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "mdantora67@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Settings Collection
+    // ===============================================================
+    match /settings/main {
+      // Allow anyone to read settings so the site can render
+      allow read: if true;
+      // In a real app, this should be restricted. 
+      // Following user request for hardcoded login (client-side only).
+      allow write: if true;
+    }
+
+    // ===============================================================
+    // Applications Collection
+    // ===============================================================
+    match /applications/{applicationId} {
+      // Allow read for admin (hardcoded login handles UI access)
+      allow read: if true;
+      // Anyone can submit an application
+      allow create: if true;
+      allow update, delete: if true;
+    }
+
+    // ===============================================================
+    // Visitor Logs Collection
+    // ===============================================================
+    match /visitor_logs/{logId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if true;
+    }
+
+    // ===============================================================
+    // Users Collection (for RBAC)
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+  }
+}
