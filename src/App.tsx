@@ -34,6 +34,8 @@ import {
   Layout,
   Smartphone,
   Monitor,
+  Tablet,
+  Chrome,
   Headphones,
   Settings,
   Mail,
@@ -146,29 +148,35 @@ type IconName = keyof typeof ICON_GALLERY;
 const Header = ({ 
   companyName, 
   logoName, 
-  logoSize = 'medium',
+  logoSize = 32,
+  logoBgColor = '#2563eb',
   logoTextSize = 'text-lg md:text-2xl',
   logoTextStyle = 'font-extrabold',
   logoTextColor = 'bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-500 bg-clip-text text-transparent'
 }: { 
   companyName: string, 
   logoName: IconName, 
-  logoSize?: string,
+  logoSize?: number,
+  logoBgColor?: string,
   logoTextSize?: string,
   logoTextStyle?: string,
   logoTextColor?: string
 }) => {
   const LogoIcon = ICON_GALLERY[logoName];
-  
-  const sizeClasses = logoSize === 'small' ? 'h-6 w-6 md:h-8 md:w-8' : logoSize === 'large' ? 'h-10 w-10 md:h-14 md:w-14' : 'h-8 w-8 md:h-10 md:w-10';
-  const iconSizeClasses = logoSize === 'small' ? 'h-3 w-3 md:h-4 md:w-4' : logoSize === 'large' ? 'h-5 w-5 md:h-8 md:w-8' : 'h-4 w-4 md:h-6 md:w-6';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-3 md:px-6">
         <Link to="/" className="flex items-center gap-2 shrink-0 overflow-hidden pr-2">
-          <div className={cn("flex shrink-0 items-center justify-center rounded-full bg-blue-600 text-white", sizeClasses)}>
-            <LogoIcon className={iconSizeClasses} />
+          <div 
+            className="flex shrink-0 items-center justify-center rounded-full text-white"
+            style={{ 
+              width: `${logoSize}px`, 
+              height: `${logoSize}px`, 
+              backgroundColor: logoBgColor 
+            }}
+          >
+            <LogoIcon style={{ width: `${logoSize * 0.5}px`, height: `${logoSize * 0.5}px` }} />
           </div>
           <span className={cn(logoTextSize, logoTextStyle, logoTextColor, "tracking-tighter drop-shadow-sm truncate")}>{companyName}</span>
         </Link>
@@ -291,13 +299,21 @@ const JobCategories = () => {
 const getVisitorInfo = async () => {
   let country = 'Unknown';
   let countryCode = 'UN';
+  let ipAddress = 'Unknown';
   try {
-    const res = await fetch('https://ipapi.co/json/');
+    // Using db-ip as it's very reliable for free tier without keys
+    const res = await fetch('https://api.db-ip.com/v2/free/self');
     const data = await res.json();
-    if (data.country_name) country = data.country_name;
-    if (data.country_code) countryCode = data.country_code;
+    if (data.countryName) country = data.countryName;
+    if (data.countryCode) countryCode = data.countryCode;
+    if (data.ipAddress) ipAddress = data.ipAddress;
   } catch (e) {
-    // Ignore fetch errors
+    // Fallback to ipify if db-ip fails
+    try {
+       const res2 = await fetch('https://api.ipify.org?format=json');
+       const data2 = await res2.json();
+       if (data2.ip) ipAddress = data2.ip;
+    } catch (e2) {}
   }
 
   const ua = navigator.userAgent;
@@ -314,7 +330,7 @@ const getVisitorInfo = async () => {
   if (/Mobi|Android/i.test(ua)) device = 'Mobile';
   else if (/Tablet|iPad/i.test(ua)) device = 'Tablet';
 
-  return { country, countryCode, browser, device };
+  return { country, countryCode, ipAddress, browser, device };
 };
 
 const ApplicationForm = ({ 
@@ -354,9 +370,87 @@ const ApplicationForm = ({
 }) => {
   const [step, setStep] = useState(1);
   const [linkRevealed, setLinkRevealed] = useState(false);
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<ApplicationFormData>();
+  const { register, handleSubmit, watch, formState: { errors }, setValue, clearErrors } = useForm<ApplicationFormData>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [compressedImage, setCompressedImage] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size exceeds 5MB limit. Please choose a smaller image.");
+      e.target.value = '';
+      return;
+    }
+
+    setSelectedFileName(file.name);
+    setUploadProgress(0);
+    clearErrors("creditReportScreenshot");
+
+    // Simulate progress bar for better UX
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev !== null && prev < 90) return prev + 10;
+        return prev;
+      });
+    }, 100);
+
+    try {
+      const base64 = await compressImage(file);
+      setCompressedImage(base64);
+      setUploadProgress(100);
+      setTimeout(() => setUploadProgress(null), 1000); // Hide progress after 1s
+    } catch (error) {
+      console.error("Image compression failed", error);
+      alert("Failed to process image. Please try another one.");
+      setUploadProgress(null);
+      setSelectedFileName(null);
+      e.target.value = '';
+    } finally {
+      clearInterval(interval);
+    }
+  };
 
   const logClick = async () => {
     try {
@@ -369,6 +463,7 @@ const ApplicationForm = ({
         platform: navigator.platform,
         country: info.country,
         countryCode: info.countryCode,
+        ipAddress: info.ipAddress,
         browser: info.browser,
         device: info.device
       });
@@ -378,19 +473,13 @@ const ApplicationForm = ({
   };
 
   const onSubmit = async (data: ApplicationFormData) => {
+    if (!compressedImage) {
+      alert("Please upload a valid screenshot before submitting.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      let screenshotBase64 = "";
-      if (data.creditReportScreenshot && data.creditReportScreenshot.length > 0) {
-        const file = data.creditReportScreenshot[0];
-        screenshotBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      }
-
       const appId = generateApplicationId();
       const callTime = generateScheduledCallTime();
 
@@ -399,7 +488,7 @@ const ApplicationForm = ({
         ...data,
         applicationId: appId,
         scheduledCallTime: callTime,
-        creditReportScreenshot: screenshotBase64, // Save as base64 string
+        creditReportScreenshot: compressedImage, // Save compressed base64 string
         submittedAt: serverTimestamp()
       };
       
@@ -842,16 +931,36 @@ const ApplicationForm = ({
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">Upload Your Credit Report Screenshot *</label>
-                  <div className="relative flex h-40 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 transition-all hover:bg-slate-100">
+                  <div className="relative flex h-40 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 transition-all hover:bg-slate-100 overflow-hidden">
                     <input 
                       type="file" 
                       accept="image/*"
-                      {...register("creditReportScreenshot", { required: "Screenshot is required" })}
+                      {...register("creditReportScreenshot", { 
+                        required: "Screenshot is required",
+                        onChange: handleFileChange
+                      })}
                       className="absolute inset-0 z-10 cursor-pointer opacity-0"
                     />
-                    <Upload className="mb-2 text-slate-400" size={32} />
-                    <p className="text-sm font-medium text-slate-600">Click to upload or drag and drop</p>
-                    <p className="text-xs text-slate-400">PNG, JPG up to 5MB</p>
+                    {uploadProgress !== null ? (
+                      <div className="w-full px-8 flex flex-col items-center">
+                        <div className="w-full bg-slate-200 rounded-full h-2.5 mb-2">
+                          <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                        </div>
+                        <p className="text-sm font-medium text-slate-600">Processing image... {uploadProgress}%</p>
+                      </div>
+                    ) : selectedFileName ? (
+                      <div className="flex flex-col items-center text-center px-4">
+                        <CheckCircle2 className="mb-2 text-green-500" size={32} />
+                        <p className="text-sm font-medium text-slate-700 truncate max-w-[200px]">{selectedFileName}</p>
+                        <p className="text-xs text-slate-400 mt-1">Click or drag to change</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="mb-2 text-slate-400" size={32} />
+                        <p className="text-sm font-medium text-slate-600">Click to upload or drag and drop</p>
+                        <p className="text-xs text-slate-400">PNG, JPG up to 5MB</p>
+                      </>
+                    )}
                   </div>
                   {errors.creditReportScreenshot && <p className="text-xs text-red-500">{errors.creditReportScreenshot.message}</p>}
                 </div>
@@ -888,21 +997,18 @@ const Footer = ({
   companyName, 
   logoName, 
   footerText, 
-  logoSize = 'medium', 
   socialLinks,
+  logoBgColor = '#2563eb',
   logoTextColor = 'bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent'
 }: { 
   companyName: string, 
   logoName: IconName, 
   footerText: string, 
-  logoSize?: string, 
   socialLinks?: any,
+  logoBgColor?: string,
   logoTextColor?: string
 }) => {
   const LogoIcon = ICON_GALLERY[logoName];
-  
-  const sizeClasses = logoSize === 'small' ? 'h-6 w-6' : logoSize === 'large' ? 'h-12 w-12' : 'h-8 w-8';
-  const iconSizeClasses = logoSize === 'small' ? 'h-3 w-3' : logoSize === 'large' ? 'h-6 w-6' : 'h-4 w-4';
 
   return (
     <footer className="border-t bg-slate-900 py-12 text-slate-400">
@@ -910,8 +1016,15 @@ const Footer = ({
         <div className="grid gap-10 md:grid-cols-4">
           <div className="col-span-2 space-y-4">
             <div className="flex items-center gap-2">
-              <div className={cn("flex items-center justify-center rounded-full bg-blue-600 text-white", sizeClasses)}>
-                <LogoIcon className={iconSizeClasses} />
+              <div 
+                className="flex items-center justify-center rounded-full text-white"
+                style={{ 
+                  width: '32px', 
+                  height: '32px', 
+                  backgroundColor: logoBgColor 
+                }}
+              >
+                <LogoIcon style={{ width: '16px', height: '16px' }} />
               </div>
               <span className={cn("text-2xl font-extrabold tracking-tighter", logoTextColor)}>{companyName}</span>
             </div>
@@ -1317,6 +1430,8 @@ const AdminPanel = ({
   setTeamDescription,
   logoSize,
   setLogoSize,
+  logoBgColor,
+  setLogoBgColor,
   logoTextSize,
   setLogoTextSize,
   logoTextStyle,
@@ -1382,8 +1497,10 @@ const AdminPanel = ({
   setTeamTitle: (val: string) => void;
   teamDescription: string;
   setTeamDescription: (val: string) => void;
-  logoSize: string;
-  setLogoSize: (val: string) => void;
+  logoSize: number;
+  setLogoSize: (val: number) => void;
+  logoBgColor: string;
+  setLogoBgColor: (val: string) => void;
   logoTextSize: string;
   setLogoTextSize: (val: string) => void;
   logoTextStyle: string;
@@ -1432,6 +1549,7 @@ const AdminPanel = ({
   const [newTeamTitle, setNewTeamTitle] = useState(teamTitle);
   const [newTeamDescription, setNewTeamDescription] = useState(teamDescription);
   const [newLogoSize, setNewLogoSize] = useState(logoSize);
+  const [newLogoBgColor, setNewLogoBgColor] = useState(logoBgColor);
   const [newLogoTextSize, setNewLogoTextSize] = useState(logoTextSize);
   const [newLogoTextStyle, setNewLogoTextStyle] = useState(logoTextStyle);
   const [newLogoTextColor, setNewLogoTextColor] = useState(logoTextColor);
@@ -1673,12 +1791,14 @@ const AdminPanel = ({
 
   const handleUpdateSocialAndLogo = () => {
     setLogoSize(newLogoSize);
+    setLogoBgColor(newLogoBgColor);
     setLogoTextSize(newLogoTextSize);
     setLogoTextStyle(newLogoTextStyle);
     setLogoTextColor(newLogoTextColor);
     setSocialLinks(newSocialLinks);
     saveSettings({ 
       logoSize: newLogoSize, 
+      logoBgColor: newLogoBgColor,
       logoTextSize: newLogoTextSize,
       logoTextStyle: newLogoTextStyle,
       logoTextColor: newLogoTextColor,
@@ -1881,6 +2001,7 @@ const AdminPanel = ({
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase">Country</th>
+                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase">IP Address</th>
                       <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase">Device</th>
                       <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase">Browser</th>
                       <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>
@@ -1896,7 +2017,7 @@ const AdminPanel = ({
                               <span className="text-lg">🌐</span>
                             ) : (
                               <img 
-                                src={`https://purecatss.github.io/static_assets/flags/${log.countryCode.toLowerCase()}.png`} 
+                                src={`https://flagcdn.com/24x18/${log.countryCode.toLowerCase()}.png`} 
                                 alt={log.countryCode}
                                 className="w-6 h-4 object-cover rounded-sm shadow-sm"
                                 onError={(e) => {
@@ -1907,8 +2028,23 @@ const AdminPanel = ({
                             <span className="text-sm font-medium text-slate-700">{log.country || 'Unknown'}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">{log.device}</td>
-                        <td className="px-6 py-4 text-sm text-slate-600">{log.browser}</td>
+                        <td className="px-6 py-4 text-sm font-mono text-slate-500">{log.ipAddress || 'Unknown'}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                            {log.device === 'Mobile' ? <Smartphone size={16} className="text-slate-400" /> : 
+                             log.device === 'Tablet' ? <Tablet size={16} className="text-slate-400" /> : 
+                             <Monitor size={16} className="text-slate-400" />}
+                            {log.device || 'Desktop'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                            {log.browser === 'Chrome' ? <Chrome size={16} className="text-blue-500" /> :
+                             log.browser === 'Safari' ? <Compass size={16} className="text-blue-400" /> :
+                             <Globe size={16} className="text-slate-400" />}
+                            {log.browser || 'Unknown'}
+                          </div>
+                        </td>
                         <td className="px-6 py-4">
                           <span className={cn(
                             "inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
@@ -2005,16 +2141,35 @@ const AdminPanel = ({
                 <h3 className="mb-4 font-bold text-slate-900">Branding & Social</h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase">Logo Size</label>
-                    <select
+                    <label className="text-xs font-semibold text-slate-500 uppercase flex justify-between">
+                      <span>Logo Size (Header Only)</span>
+                      <span className="text-blue-600">{newLogoSize}px</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="16"
+                      max="64"
                       value={newLogoSize}
-                      onChange={(e) => setNewLogoSize(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 p-3 focus:border-blue-500 focus:outline-none"
-                    >
-                      <option value="small">Small</option>
-                      <option value="medium">Medium</option>
-                      <option value="large">Large</option>
-                    </select>
+                      onChange={(e) => setNewLogoSize(Number(e.target.value))}
+                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase">Logo Background Color</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={newLogoBgColor}
+                        onChange={(e) => setNewLogoBgColor(e.target.value)}
+                        className="h-10 w-14 cursor-pointer rounded border border-slate-200 p-1"
+                      />
+                      <input
+                        type="text"
+                        value={newLogoBgColor}
+                        onChange={(e) => setNewLogoBgColor(e.target.value)}
+                        className="flex-1 rounded-lg border border-slate-200 p-2 text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-500 uppercase">Facebook URL</label>
@@ -2830,6 +2985,7 @@ const HomePage = ({
             platform: navigator.platform,
             country: info.country,
             countryCode: info.countryCode,
+            ipAddress: info.ipAddress,
             browser: info.browser,
             device: info.device
           });
