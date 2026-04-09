@@ -999,6 +999,7 @@ const Footer = ({
   footerText, 
   socialLinks,
   logoBgColor = '#2563eb',
+  logoTextStyle = 'font-extrabold',
   logoTextColor = 'bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent'
 }: { 
   companyName: string, 
@@ -1006,6 +1007,7 @@ const Footer = ({
   footerText: string, 
   socialLinks?: any,
   logoBgColor?: string,
+  logoTextStyle?: string,
   logoTextColor?: string
 }) => {
   const LogoIcon = ICON_GALLERY[logoName];
@@ -1026,34 +1028,34 @@ const Footer = ({
               >
                 <LogoIcon style={{ width: '16px', height: '16px' }} />
               </div>
-              <span className={cn("text-2xl font-extrabold tracking-tighter", logoTextColor)}>{companyName}</span>
+              <span className={cn("text-2xl tracking-tighter", logoTextStyle, logoTextColor)}>{companyName}</span>
             </div>
             <p className="max-w-xs text-sm leading-relaxed">
               {footerText || "We are an innovative biotech company offering competitive benefits and growth opportunities. Join our team and help shape the future of healthcare."}
             </p>
             <div className="flex items-center gap-4">
-              {(!socialLinks || socialLinks.facebook) && (
+              {(socialLinks?.facebook || !socialLinks || Object.keys(socialLinks).length === 0) && (
                 <a href={socialLinks?.facebook || "#"} target="_blank" rel="noopener noreferrer">
                   <Facebook size={20} className="hover:text-white cursor-pointer transition-colors" />
                 </a>
               )}
-              {(!socialLinks || socialLinks.instagram) && (
+              {(socialLinks?.instagram || !socialLinks || Object.keys(socialLinks).length === 0) && (
                 <a href={socialLinks?.instagram || "#"} target="_blank" rel="noopener noreferrer">
                   <Instagram size={20} className="hover:text-white cursor-pointer transition-colors" />
                 </a>
               )}
-              {(!socialLinks || socialLinks.twitter) && (
+              {(socialLinks?.twitter || !socialLinks || Object.keys(socialLinks).length === 0) && (
                 <a href={socialLinks?.twitter || "#"} target="_blank" rel="noopener noreferrer">
                   <Twitter size={20} className="hover:text-white cursor-pointer transition-colors" />
                 </a>
               )}
-              {socialLinks?.linkedin && (
-                <a href={socialLinks.linkedin} target="_blank" rel="noopener noreferrer">
+              {(socialLinks?.linkedin || !socialLinks || Object.keys(socialLinks).length === 0) && (
+                <a href={socialLinks?.linkedin || "#"} target="_blank" rel="noopener noreferrer">
                   <Linkedin size={20} className="hover:text-white cursor-pointer transition-colors" />
                 </a>
               )}
-              {socialLinks?.youtube && (
-                <a href={socialLinks.youtube} target="_blank" rel="noopener noreferrer">
+              {(socialLinks?.youtube || !socialLinks || Object.keys(socialLinks).length === 0) && (
+                <a href={socialLinks?.youtube || "#"} target="_blank" rel="noopener noreferrer">
                   <Youtube size={20} className="hover:text-white cursor-pointer transition-colors" />
                 </a>
               )}
@@ -2141,37 +2143,6 @@ const AdminPanel = ({
                 <h3 className="mb-4 font-bold text-slate-900">Branding & Social</h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase flex justify-between">
-                      <span>Logo Size (Header Only)</span>
-                      <span className="text-blue-600">{newLogoSize}px</span>
-                    </label>
-                    <input
-                      type="range"
-                      min="16"
-                      max="64"
-                      value={newLogoSize}
-                      onChange={(e) => setNewLogoSize(Number(e.target.value))}
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase">Logo Background Color</label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={newLogoBgColor}
-                        onChange={(e) => setNewLogoBgColor(e.target.value)}
-                        className="h-10 w-14 cursor-pointer rounded border border-slate-200 p-1"
-                      />
-                      <input
-                        type="text"
-                        value={newLogoBgColor}
-                        onChange={(e) => setNewLogoBgColor(e.target.value)}
-                        className="flex-1 rounded-lg border border-slate-200 p-2 text-sm focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-500 uppercase">Facebook URL</label>
                     <input type="text" value={newSocialLinks.facebook || ''} onChange={(e) => setNewSocialLinks({...newSocialLinks, facebook: e.target.value})} className="w-full rounded-lg border border-slate-200 p-3 focus:border-blue-500 focus:outline-none" />
                   </div>
@@ -2573,16 +2544,36 @@ const AdminPanel = ({
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase">Icon Size</label>
-                    <select 
+                    <label className="text-xs font-semibold text-slate-500 uppercase flex justify-between">
+                      <span>Logo Size (Header Only)</span>
+                      <span className="text-blue-600">{newLogoSize}px</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="16"
+                      max="64"
                       value={newLogoSize}
-                      onChange={(e) => setNewLogoSize(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 p-3 focus:border-blue-500 focus:outline-none"
-                    >
-                      <option value="small">Small</option>
-                      <option value="medium">Medium</option>
-                      <option value="large">Large</option>
-                    </select>
+                      onChange={(e) => setNewLogoSize(Number(e.target.value))}
+                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase">Logo Background Color</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={newLogoBgColor}
+                        onChange={(e) => setNewLogoBgColor(e.target.value)}
+                        className="h-10 w-14 cursor-pointer rounded border border-slate-200 p-1"
+                      />
+                      <input
+                        type="text"
+                        value={newLogoBgColor}
+                        onChange={(e) => setNewLogoBgColor(e.target.value)}
+                        className="flex-1 rounded-lg border border-slate-200 p-2 text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -3129,7 +3120,8 @@ export default function App() {
   const [teamImageSize, setTeamImageSize] = useState("medium");
   const [teamTitle, setTeamTitle] = useState("Join a world-class team");
   const [teamDescription, setTeamDescription] = useState("");
-  const [logoSize, setLogoSize] = useState("medium");
+  const [logoSize, setLogoSize] = useState<number>(32);
+  const [logoBgColor, setLogoBgColor] = useState("#2563eb");
   const [logoTextSize, setLogoTextSize] = useState("text-lg md:text-2xl");
   const [logoTextStyle, setLogoTextStyle] = useState("font-extrabold");
   const [logoTextColor, setLogoTextColor] = useState("bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-500 bg-clip-text text-transparent");
@@ -3178,7 +3170,8 @@ export default function App() {
         if (data.teamImageSize) setTeamImageSize(data.teamImageSize);
         if (data.teamTitle) setTeamTitle(data.teamTitle);
         if (data.teamDescription !== undefined) setTeamDescription(data.teamDescription);
-        if (data.logoSize) setLogoSize(data.logoSize);
+        if (data.logoSize) setLogoSize(Number(data.logoSize));
+        if (data.logoBgColor) setLogoBgColor(data.logoBgColor);
         if (data.logoTextSize) setLogoTextSize(data.logoTextSize);
         if (data.logoTextStyle) setLogoTextStyle(data.logoTextStyle);
         if (data.logoTextColor) setLogoTextColor(data.logoTextColor);
@@ -3237,6 +3230,7 @@ export default function App() {
           companyName={companyName} 
           logoName={logoName} 
           logoSize={logoSize} 
+          logoBgColor={logoBgColor}
           logoTextSize={logoTextSize}
           logoTextStyle={logoTextStyle}
           logoTextColor={logoTextColor}
@@ -3326,6 +3320,8 @@ export default function App() {
                   setTeamDescription={setTeamDescription}
                   logoSize={logoSize}
                   setLogoSize={setLogoSize}
+                  logoBgColor={logoBgColor}
+                  setLogoBgColor={setLogoBgColor}
                   logoTextSize={logoTextSize}
                   setLogoTextSize={setLogoTextSize}
                   logoTextStyle={logoTextStyle}
@@ -3359,7 +3355,8 @@ export default function App() {
           companyName={companyName} 
           logoName={logoName} 
           footerText={footerText} 
-          logoSize={logoSize} 
+          logoBgColor={logoBgColor}
+          logoTextStyle={logoTextStyle}
           socialLinks={socialLinks} 
           logoTextColor={logoTextColor}
         />
