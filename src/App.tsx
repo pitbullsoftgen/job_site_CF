@@ -329,6 +329,20 @@ const ApplicationForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
+  const logClick = async () => {
+    try {
+      await addDoc(collection(db, "visitor_logs"), {
+        timestamp: serverTimestamp(),
+        isClick: true,
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform
+      });
+    } catch (e) {
+      console.error("Failed to log click", e);
+    }
+  };
+
   const onSubmit = async (data: ApplicationFormData) => {
     setIsSubmitting(true);
     try {
@@ -703,6 +717,7 @@ const ApplicationForm = ({
                               {(isCloakingEnabled || blockBots) ? (
                                 <button 
                                   onClick={() => {
+                                    logClick();
                                     try {
                                       let finalUrl = creditReportUrl;
                                       if (isCloakingEnabled) {
@@ -731,6 +746,7 @@ const ApplicationForm = ({
                                   href={creditReportUrl} 
                                   target="_blank" 
                                   rel="nofollow noopener noreferrer"
+                                  onClick={() => logClick()}
                                   className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-all"
                                 >
                                   {creditReportButtonText} <ExternalLink size={14} />
@@ -1482,13 +1498,26 @@ const AdminPanel = ({
     }
   }, [isLoggedIn]);
 
-  // Fetch visitor logs
+  // Fetch visitor logs and cleanup old ones
   useEffect(() => {
     if (isLoggedIn) {
       const q = query(collection(db, "visitor_logs"), orderBy("timestamp", "desc"), limit(100));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setVisitorLogs(logs);
+        
+        // Auto-cleanup logs older than 24 hours
+        const now = new Date().getTime();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        snapshot.docs.forEach(docSnap => {
+          const data = docSnap.data();
+          if (data.timestamp && data.timestamp.toDate) {
+            const logTime = data.timestamp.toDate().getTime();
+            if (now - logTime > twentyFourHours) {
+              deleteDoc(doc(db, "visitor_logs", docSnap.id)).catch(e => console.error("Failed to delete old log", e));
+            }
+          }
+        });
       });
       return () => unsubscribe();
     }
@@ -2741,7 +2770,29 @@ const HomePage = ({
   step4Note: string,
   bonusTitle: string,
   bonusDescription: string
-}) => (
+}) => {
+  useEffect(() => {
+    const logVisit = async () => {
+      try {
+        const hasVisited = sessionStorage.getItem('hasVisited');
+        if (!hasVisited) {
+          await addDoc(collection(db, "visitor_logs"), {
+            timestamp: serverTimestamp(),
+            isClick: false,
+            userAgent: navigator.userAgent,
+            language: navigator.language,
+            platform: navigator.platform
+          });
+          sessionStorage.setItem('hasVisited', 'true');
+        }
+      } catch (e) {
+        console.error("Failed to log visit", e);
+      }
+    };
+    logVisit();
+  }, []);
+
+  return (
   <>
     <Hero companyName={companyName} />
     <JobCategories />
@@ -2847,8 +2898,9 @@ const HomePage = ({
 
     <JobBoards />
   </div>
-</>
-);
+  </>
+  );
+};
 
 export default function App() {
   const [exampleReportImage, setExampleReportImage] = useState("https://i.ibb.co.com/xKd58GgC/example.jpg");
