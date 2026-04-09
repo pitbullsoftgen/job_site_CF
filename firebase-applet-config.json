@@ -1,5 +1,4 @@
 {
-const firebaseConfig = {
   apiKey: "AIzaSyBCt6RUD4F8sKyWsfNFD-QKGyrKGQw65uE",
   authDomain: "myjobcf.firebaseapp.com",
   projectId: "myjobcf",
