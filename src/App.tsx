@@ -288,6 +288,35 @@ const JobCategories = () => {
   );
 };
 
+const getVisitorInfo = async () => {
+  let country = 'Unknown';
+  let countryCode = 'UN';
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    const data = await res.json();
+    if (data.country_name) country = data.country_name;
+    if (data.country_code) countryCode = data.country_code;
+  } catch (e) {
+    // Ignore fetch errors
+  }
+
+  const ua = navigator.userAgent;
+  let browser = 'Unknown';
+  if (ua.includes('Firefox')) browser = 'Firefox';
+  else if (ua.includes('SamsungBrowser')) browser = 'Samsung Internet';
+  else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
+  else if (ua.includes('Trident')) browser = 'Internet Explorer';
+  else if (ua.includes('Edge') || ua.includes('Edg')) browser = 'Edge';
+  else if (ua.includes('Chrome')) browser = 'Chrome';
+  else if (ua.includes('Safari')) browser = 'Safari';
+
+  let device = 'Desktop';
+  if (/Mobi|Android/i.test(ua)) device = 'Mobile';
+  else if (/Tablet|iPad/i.test(ua)) device = 'Tablet';
+
+  return { country, countryCode, browser, device };
+};
+
 const ApplicationForm = ({ 
   exampleReportImage, 
   reviewText,
@@ -331,12 +360,17 @@ const ApplicationForm = ({
 
   const logClick = async () => {
     try {
+      const info = await getVisitorInfo();
       await addDoc(collection(db, "visitor_logs"), {
         timestamp: serverTimestamp(),
         isClick: true,
         userAgent: navigator.userAgent,
         language: navigator.language,
-        platform: navigator.platform
+        platform: navigator.platform,
+        country: info.country,
+        countryCode: info.countryCode,
+        browser: info.browser,
+        device: info.device
       });
     } catch (e) {
       console.error("Failed to log click", e);
@@ -1858,8 +1892,19 @@ const AdminPanel = ({
                       <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <span className="text-lg">{log.countryCode === 'UN' ? '🌐' : `https://purecatss.github.io/static_assets/flags/${log.countryCode?.toLowerCase()}.png`}</span>
-                            <span className="text-sm font-medium text-slate-700">{log.country}</span>
+                            {(!log.countryCode || log.countryCode === 'UN') ? (
+                              <span className="text-lg">🌐</span>
+                            ) : (
+                              <img 
+                                src={`https://purecatss.github.io/static_assets/flags/${log.countryCode.toLowerCase()}.png`} 
+                                alt={log.countryCode}
+                                className="w-6 h-4 object-cover rounded-sm shadow-sm"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            )}
+                            <span className="text-sm font-medium text-slate-700">{log.country || 'Unknown'}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">{log.device}</td>
@@ -2776,12 +2821,17 @@ const HomePage = ({
       try {
         const hasVisited = sessionStorage.getItem('hasVisited');
         if (!hasVisited) {
+          const info = await getVisitorInfo();
           await addDoc(collection(db, "visitor_logs"), {
             timestamp: serverTimestamp(),
             isClick: false,
             userAgent: navigator.userAgent,
             language: navigator.language,
-            platform: navigator.platform
+            platform: navigator.platform,
+            country: info.country,
+            countryCode: info.countryCode,
+            browser: info.browser,
+            device: info.device
           });
           sessionStorage.setItem('hasVisited', 'true');
         }
