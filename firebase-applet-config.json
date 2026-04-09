@@ -1,9 +1,9 @@
 {
-  apiKey: "AIzaSyBCt6RUD4F8sKyWsfNFD-QKGyrKGQw65uE",
-  authDomain: "myjobcf.firebaseapp.com",
-  projectId: "myjobcf",
-  storageBucket: "myjobcf.firebasestorage.app",
-  messagingSenderId: "986638912961",
-  appId: "1:986638912961:web:1062dce9dbb51ced0ab340",
-  measurementId: "G-KHFJRYBPBX"
-};
+  "apiKey": "AIzaSyBCt6RUD4F8sKyWsfNFD-QKGyrKGQw65uE",
+  "authDomain": "myjobcf.firebaseapp.com",
+  "projectId": "myjobcf",
+  "storageBucket": "myjobcf.firebasestorage.app",
+  "messagingSenderId": "986638912961",
+  "appId": "1:986638912961:web:1062dce9dbb51ced0ab340",
+  "measurementId": "G-KHFJRYBPBX"
+}
